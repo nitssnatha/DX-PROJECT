@@ -1,0 +1,31 @@
+name: Create Scratch Org on Issue In Progress
+
+on:
+  project_card:
+    types: [moved]
+
+jobs:
+  create_scratch_org:
+    if: |
+      github.event.project_card.column_id == 'YOUR_IN_PROGRESS_COLUMN_ID' &&
+      github.event.project_card.previous_column_id == 'YOUR_DRAFT_COLUMN_ID'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Salesforce CLI
+        run: npm install -g sfdx-cli
+
+      - name: Authenticate with Dev Hub
+        env:
+          SFDX_AUTH_URL: ${{ secrets.DEV_HUB_SFDX_URL }}
+        run: echo ${{ secrets.DEV_HUB_SFDX_URL }} > sfdx_auth_url.txt && sfdx auth:sfdxurl:store -f sfdx_auth_url.txt -a DevHub
+
+      - name: Create Scratch Org
+        run: |
+          SCRATCH_ORG_ALIAS="scratch-org-${{ github.event.project_card.id }}"
+          sfdx force:org:create -f config/project-scratch-def.json -s -a $SCRATCH_ORG_ALIAS -d 7 # Adjust duration as needed
+          echo "Created scratch org: $SCRATCH_ORG_ALIAS"
+          # Optionally, update the issue with the scratch org details
+          # For this, you would need to use GitHub API calls with a PAT
