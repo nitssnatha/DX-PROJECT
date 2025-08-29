@@ -7,8 +7,8 @@ on:
 jobs:
   create_scratch_org:
     if: |
-      github.event.project_card.column_id == 'YOUR_IN_PROGRESS_COLUMN_ID' &&
-      github.event.project_card.previous_column_id == 'YOUR_DRAFT_COLUMN_ID'
+      github.event.project_card.column_id == 'In progress' &&
+      github.event.project_card.previous_column_id == 'Draft'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
