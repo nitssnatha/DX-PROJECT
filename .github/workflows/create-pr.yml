@@ -1,0 +1,39 @@
+name: Create PR on Issue Dev Complete
+
+on:
+  project_card:
+    types: [moved]
+
+jobs:
+  create_pr:
+    if: |
+      github.event.project_card.column_id == 'YOUR_DEV_COMPLETE_COLUMN_ID' &&
+      github.event.project_card.previous_column_id == 'YOUR_IN_PROGRESS_COLUMN_ID'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          # This token is needed to push to a new branch and create a PR
+          token: ${{ secrets.GITHUB_TOKEN }} # Use the default GITHUB_TOKEN for PR creation
+
+      - name: Install Salesforce CLI
+        run: npm install -g sfdx-cli
+
+      # This step assumes the developer has been pushing their changes to a feature branch
+      # If the changes are extracted from a scratch org, a more complex flow is needed.
+      # For simplicity here, we assume a feature branch already exists based on the issue.
+
+      - name: Define branch name
+        id: branch_name
+        run: echo "::set-output name=name::feature/${{ github.event.project_card.id }}" # Example: feature/123
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: ${{ steps.branch_name.outputs.name }}
+          destination_branch: 'develop' # Or your main integration branch
+          pr_title: 'Feature: ${{ github.event.project_card.note || github.event.project_card.content_url }}'
+          pr_body: 'Automated PR for issue ${{ github.event.project_card.id }}'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
