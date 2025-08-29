@@ -1,0 +1,48 @@
+name: Deploy to QA on PR Merge and Move Card
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop # Or your main integration branch
+
+jobs:
+  deploy_and_move_card:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Salesforce CLI
+        run: npm install -g sfdx-cli
+
+      - name: Authenticate with QA Org
+        env:
+          SFDX_AUTH_URL: ${{ secrets.QA_ORG_SFDX_URL }}
+        run: echo ${{ secrets.QA_ORG_SFDX_URL }} > sfdx_auth_url.txt && sfdx auth:sfdxurl:store -f sfdx_auth_url.txt -a QAOrg --setdefaultusername
+
+      - name: Deploy to QA
+        run: sfdx force:source:deploy -p force-app -c # -c runs a check-only deploy first
+
+      - name: Find linked issue ID
+        id: get_issue_id
+        run: |
+          # This is a simplified approach. A robust solution would parse the PR title/body
+          # to find the linked issue number, e.g., "Fixes #123" or "Closes #456".
+          # For now, let's assume the PR title contains "Feature: <Issue ID>" or similar.
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          ISSUE_ID=$(echo "$PR_TITLE" | grep -oE '#[0-9]+' | cut -d'#' -f2) # Extracts #123 -> 123
+          echo "::set-output name=issue_id::$ISSUE_ID"
+        # Only proceed if an issue ID was found
+        if: steps.get_issue_id.outputs.issue_id != ''
+
+      - name: Move Issue Card to QA Column
+        uses: leonsteinberg/github-project-automation-action@v1.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          project: 'YOUR_PROJECT_NAME' # The name of your GitHub Project
+          column: 'QA' # The name of your QA column
+          issue: ${{ steps.get_issue_id.outputs.issue_id }}
+          action: 'move'
